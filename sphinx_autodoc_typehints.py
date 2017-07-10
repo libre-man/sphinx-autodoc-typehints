@@ -1,7 +1,8 @@
+import re
 import inspect
 
-from sphinx.util.inspect import getargspec
 from sphinx.ext.autodoc import formatargspec
+from sphinx.util.inspect import getargspec
 
 try:
     from backports.typing import get_type_hints, TypeVar, Any, AnyStr, GenericMeta
@@ -11,14 +12,18 @@ except ImportError:
 try:
     from inspect import unwrap
 except ImportError:
+
     def unwrap(func, *, stop=None):
         """This is the inspect.unwrap() method copied from Python 3.5's standard library."""
         if stop is None:
+
             def _is_wrapper(f):
                 return hasattr(f, '__wrapped__')
         else:
+
             def _is_wrapper(f):
                 return hasattr(f, '__wrapped__') and not stop(f)
+
         f = func  # remember the original func for error reporting
         memo = {id(f)}  # Memoise by id to tolerate non-hashable objects
         while _is_wrapper(func):
@@ -30,6 +35,10 @@ except ImportError:
         return func
 
 
+py_return_rgex = re.compile(r'^(?P<space>[ ]*):returns?:', re.VERBOSE)
+py_rtype_rgex = re.compile(r'^(?P<space>[ ]*):rtype?:', re.VERBOSE)
+
+
 def format_annotation(annotation):
     if inspect.isclass(annotation) and annotation.__module__ == 'builtins':
         if annotation.__qualname__ == 'NoneType':
@@ -37,7 +46,9 @@ def format_annotation(annotation):
         else:
             return ':class:`{}`'.format(annotation.__qualname__)
 
-    annotation_cls = annotation if inspect.isclass(annotation) else type(annotation)
+    annotation_cls = annotation if inspect.isclass(annotation) else type(
+        annotation)
+
     if annotation_cls.__module__ in ('typing', 'backports.typing'):
         params = None
         prefix = ':class:'
@@ -48,7 +59,11 @@ def format_annotation(annotation):
         elif annotation is AnyStr:
             return ':data:`~typing.AnyStr`'
         elif isinstance(annotation, TypeVar):
-            return '\\%r' % annotation
+            return ':data:`{}`'.format(annotation.__name__)
+        elif class_name in ('ClassVar', '_ClassVar'):
+            class_name = 'ClassVar'
+            prefix = ':data:'
+            params = (annotation.__type__, )
         elif class_name in ('Union', '_Union'):
             prefix = ':data:'
             class_name = 'Union'
@@ -57,13 +72,15 @@ def format_annotation(annotation):
             else:
                 params = annotation.__args__
 
-            if params and len(params) == 2 and params[1].__qualname__ == 'NoneType':
+            if params and len(
+                    params) == 2 and params[1].__qualname__ == 'NoneType':
                 class_name = 'Optional'
-                params = (params[0],)
-        elif annotation_cls.__qualname__ == 'Tuple' and hasattr(annotation, '__tuple_params__'):
+                params = (params[0], )
+        elif annotation_cls.__qualname__ == 'Tuple' and hasattr(
+                annotation, '__tuple_params__'):
             params = annotation.__tuple_params__
             if annotation.__tuple_use_ellipsis__:
-                params += (Ellipsis,)
+                params += (Ellipsis, )
         elif annotation_cls.__qualname__ == 'Callable':
             prefix = ':data:'
             arg_annotations = result_annotation = None
@@ -74,25 +91,26 @@ def format_annotation(annotation):
                 arg_annotations = annotation.__args__[:-1]
                 result_annotation = annotation.__args__[-1]
 
-            if arg_annotations in (Ellipsis, (Ellipsis,)):
+            if arg_annotations in (Ellipsis, (Ellipsis, )):
                 params = [Ellipsis, result_annotation]
             elif arg_annotations is not None:
                 params = [
-                    '\\[{}]'.format(
-                        ', '.join(format_annotation(param) for param in arg_annotations)),
-                    result_annotation
+                    '\\[{}]'.format(', '.join(
+                        format_annotation(param)
+                        for param in arg_annotations)), result_annotation
                 ]
         elif hasattr(annotation, 'type_var'):
             # Type alias
             class_name = annotation.name
-            params = (annotation.type_var,)
+            params = (annotation.type_var, )
         elif getattr(annotation, '__args__', None) is not None:
             params = annotation.__args__
         elif hasattr(annotation, '__parameters__'):
             params = annotation.__parameters__
 
         if params:
-            extra = '\\[{}]'.format(', '.join(format_annotation(param) for param in params))
+            extra = '\\[{}]'.format(
+                ', '.join(format_annotation(param) for param in params))
 
         return '{}`~typing.{}`{}'.format(prefix, class_name, extra)
     elif annotation is Ellipsis:
@@ -100,15 +118,26 @@ def format_annotation(annotation):
     elif inspect.isclass(annotation):
         extra = ''
         if isinstance(annotation, GenericMeta):
-            extra = '\\[{}]'.format(', '.join(format_annotation(param)
-                                              for param in annotation.__parameters__))
+            params = annotation.__parameters__ + annotation.__args__
+            extra = '\\[{}]'.format(', '.join(
+                format_annotation(param)
+                for param in params))
 
-        return ':class:`~{}.{}`{}'.format(annotation.__module__, annotation.__qualname__, extra)
+        return ':class:`~{}.{}`{}'.format(annotation.__module__,
+                                          annotation.__qualname__, extra)
+    elif inspect.isfunction(annotation):
+        return ':py:func:`{}`'.format(annotation.__name__)
     else:
         return str(annotation)
 
 
-def process_signature(app, what: str, name: str, obj, options, signature, return_annotation):
+def process_signature(app,
+                      what: str,
+                      name: str,
+                      obj,
+                      options,
+                      signature,
+                      return_annotation):
     if callable(obj):
         if what in ('class', 'exception'):
             obj = getattr(obj, '__init__')
@@ -130,14 +159,20 @@ def process_docstring(app, what, name, obj, options, lines):
         obj = obj.fget
 
     if callable(obj):
+        orig_obj = obj
         if what in ('class', 'exception'):
             obj = getattr(obj, '__init__')
 
         obj = unwrap(obj)
         try:
             type_hints = get_type_hints(obj)
+            if not type_hints and what in ('class'):
+                type_hints = get_type_hints(orig_obj)
         except (AttributeError, TypeError):
             # Introspecting a slot wrapper will raise TypeError
+            return
+        except:
+            print('WARNING: encountered an error when handeling {}'.format(orig_obj))
             return
 
         for argname, annotation in type_hints.items():
@@ -149,22 +184,34 @@ def process_docstring(app, what, name, obj, options, lines):
                     continue
 
                 insert_index = len(lines)
+                return_match = None
                 for i, line in enumerate(lines):
-                    if line.startswith(':rtype:'):
+                    return_match = py_return_rgex.match(line)
+                    if py_rtype_rgex.match(line) is not None:
                         insert_index = None
                         break
-                    elif line.startswith(':return:') or line.startswith(':returns:'):
+                    elif return_match is not None:
                         insert_index = i
                         break
 
                 if insert_index is not None:
-                    lines.insert(insert_index, ':rtype: {}'.format(formatted_annotation))
+                    lines.insert(insert_index, '{}:rtype: {}'.format(
+                        return_match.group('space')
+                        if return_match else '', formatted_annotation))
             else:
                 searchfor = ':param {}:'.format(argname)
                 for i, line in enumerate(lines):
                     if line.startswith(searchfor):
-                        lines.insert(i, ':type {}: {}'.format(argname, formatted_annotation))
+                        lines.insert(i, ':type {}: {}'.format(
+                            argname, formatted_annotation))
                         break
+                else:
+                    searchfor = ':ivar {}:'.format(argname)
+                    for i, line in enumerate(lines):
+                        if line.startswith(searchfor):
+                            lines.insert(i, ':vartype {}: {}'.format(
+                                argname, formatted_annotation))
+                            break
 
 
 def setup(app):
