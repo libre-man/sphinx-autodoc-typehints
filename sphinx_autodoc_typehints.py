@@ -1,5 +1,5 @@
-import re
 import inspect
+import re
 
 from sphinx.ext.autodoc import formatargspec
 from sphinx.util.inspect import getargspec
@@ -8,6 +8,8 @@ try:
     from backports.typing import get_type_hints, TypeVar, Any, AnyStr, GenericMeta
 except ImportError:
     from typing import get_type_hints, TypeVar, Any, AnyStr, GenericMeta
+    import typing
+    typing.TYPE_CHECKING = True
 
 try:
     from inspect import unwrap
