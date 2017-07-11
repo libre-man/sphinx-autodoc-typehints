@@ -10,6 +10,7 @@ except ImportError:
     from typing import get_type_hints, TypeVar, Any, AnyStr, GenericMeta
     import typing
     typing.TYPE_CHECKING = True
+    typing.SPHINX = True
 
 try:
     from inspect import unwrap
