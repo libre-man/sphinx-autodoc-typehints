@@ -8,7 +8,6 @@ readme = open(readme_path).read()
 
 setup(
     name='sphinx-autodoc-typehints',
-    use_scm_version=True,
     description='Type hints (PEP 484) support for the Sphinx autodoc extension',
     long_description=readme,
     author='Alex Grönholm',
@@ -31,9 +30,6 @@ setup(
     license='MIT',
     zip_safe=True,
     py_modules=['sphinx_autodoc_typehints'],
-    setup_requires=[
-        'setuptools_scm >= 1.7.0'
-    ],
     install_requires=[
         'Sphinx >= 1.4'
     ],
