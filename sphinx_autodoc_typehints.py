@@ -7,7 +7,11 @@ from sphinx.util.inspect import getargspec
 try:
     from backports.typing import get_type_hints, TypeVar, Any, AnyStr, GenericMeta
 except ImportError:
-    from typing import get_type_hints, TypeVar, Any, AnyStr, GenericMeta
+    from typing import get_type_hints, TypeVar, Any, AnyStr
+    try:
+        from typing import GenericMeta
+    except ImportError:
+        from typing import _GenericAlias as GenericMeta
     import typing
     typing.TYPE_CHECKING = True
     typing.SPHINX = True
