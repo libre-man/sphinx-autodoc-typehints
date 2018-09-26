@@ -1,8 +1,11 @@
 import inspect
-from typing import get_type_hints, TypeVar, Any, AnyStr, Generic, Union
+import typing
+from typing import Any, AnyStr, Generic, TypeVar, Union, get_type_hints
 
-from sphinx.util.inspect import getargspec
 from sphinx.ext.autodoc import formatargspec
+from sphinx.util.inspect import Signature, getargspec
+
+typing.TYPE_CHECKING = True
 
 try:
     from inspect import unwrap
@@ -103,7 +106,7 @@ def format_annotation(annotation):
             extra = '\\[{}]'.format(', '.join(format_annotation(param) for param in params))
 
         if not class_name:
-            class_name = annotation_cls.__qualname__.title()
+            class_name = annotation_cls.__qualname__
 
         return '{}`~{}.{}`{}'.format(prefix, module, class_name, extra)
     elif annotation is Ellipsis:
@@ -125,42 +128,13 @@ def format_annotation(annotation):
 
 
 def process_signature(app, what: str, name: str, obj, options, signature, return_annotation):
-    if not callable(obj):
-        return
-
-    if what in ('class', 'exception'):
-        obj = getattr(obj, '__init__', getattr(obj, '__new__', None))
-
-    if not getattr(obj, '__annotations__', None):
-        return
-
-    obj = unwrap(obj)
-    try:
-        argspec = getargspec(obj)
-    except (TypeError, ValueError):
-        return
-
-    if argspec.args:
+    if callable(obj):
         if what in ('class', 'exception'):
-            del argspec.args[0]
-        elif what == 'method':
-            outer = inspect.getmodule(obj)
-            for clsname in obj.__qualname__.split('.')[:-1]:
-                outer = getattr(outer, clsname)
+            obj = getattr(obj, '__init__')
 
-            method_name = obj.__name__
-            if method_name.startswith("__") and not method_name.endswith("__"):
-                # If the method starts with double underscore (dunder)
-                # Python applies mangling so we need to prepend the class name.
-                # This doesn't happen if it always ends with double underscore.
-                class_name = obj.__qualname__.split('.')[-2]
-                method_name = "_{c}{m}".format(c=class_name, m=method_name)
+        obj = unwrap(obj)
 
-            method_object = outer.__dict__[method_name]
-            if not isinstance(method_object, (classmethod, staticmethod)):
-                del argspec.args[0]
-
-    return formatargspec(obj, *argspec[:-1]), None
+        return Signature(obj).format_args(), None
 
 
 def process_docstring(app, what, name, obj, options, lines):
