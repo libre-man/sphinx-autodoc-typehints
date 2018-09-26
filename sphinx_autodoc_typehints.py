@@ -57,7 +57,7 @@ def format_annotation(annotation):
         elif annotation is AnyStr:
             return ':py:data:`~typing.AnyStr`'
         elif isinstance(annotation, TypeVar):
-            return '\\%r' % annotation
+            return ':class:`~{}`'.format(annotation.__name__)
         elif (annotation is Union or getattr(annotation, '__origin__', None) is Union or
               hasattr(annotation, '__union_params__')):
             prefix = ':py:data:'
@@ -123,18 +123,26 @@ def format_annotation(annotation):
 
         return ':py:class:`~{}.{}`{}'.format(annotation.__module__, annotation_cls.__qualname__,
                                              extra)
+    elif getattr(annotation, '__module__', None) == 'typing' and hasattr(annotation, '__supertype__'):
+        # This is a 'NewType', simply use its name
+        return ':py:class:`~{}`'.format(annotation.__name__)
 
     return str(annotation)
 
 
 def process_signature(app, what: str, name: str, obj, options, signature, return_annotation):
-    if callable(obj):
-        if what in ('class', 'exception'):
-            obj = getattr(obj, '__init__')
+    if not callable(obj):
+        return
 
-        obj = unwrap(obj)
+    if what in ('class', 'exception'):
+        obj = getattr(obj, '__init__')
 
-        return Signature(obj).format_args(), None
+    if not getattr(obj, '__annotations__', None):
+        return
+
+    obj = unwrap(obj)
+
+    return Signature(obj).format_args(), None
 
 
 def process_docstring(app, what, name, obj, options, lines):
