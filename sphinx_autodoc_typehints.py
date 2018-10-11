@@ -6,6 +6,7 @@ from sphinx.ext.autodoc import formatargspec
 from sphinx.util.inspect import Signature, getargspec
 
 typing.TYPE_CHECKING = True
+typing.SPHINX = True
 
 try:
     from inspect import unwrap
@@ -119,7 +120,8 @@ def format_annotation(annotation):
         if Generic in annotation_cls.mro():
             params = (getattr(annotation, '__parameters__', None) or
                       getattr(annotation, '__args__', None))
-            extra = '\\[{}]'.format(', '.join(format_annotation(param) for param in params))
+            if params is not None:
+                extra = '\\[{}]'.format(', '.join(format_annotation(param) for param in params))
 
         return ':py:class:`~{}.{}`{}'.format(annotation.__module__, annotation_cls.__qualname__,
                                              extra)
