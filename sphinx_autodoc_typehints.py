@@ -158,7 +158,7 @@ def process_docstring(app, what, name, obj, options, lines):
         obj = unwrap(obj)
         try:
             type_hints = get_type_hints(obj)
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError, NameError):
             # Introspecting a slot wrapper will raise TypeError
             return
 
