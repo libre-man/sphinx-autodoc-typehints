@@ -2,8 +2,7 @@ import inspect
 import typing
 from typing import Any, AnyStr, Generic, TypeVar, Union, get_type_hints
 
-from sphinx.ext.autodoc import formatargspec
-from sphinx.util.inspect import Signature, getargspec
+from sphinx.util.inspect import Signature
 
 typing.TYPE_CHECKING = True
 typing.SPHINX = True
