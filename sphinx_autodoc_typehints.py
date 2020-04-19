@@ -4,9 +4,6 @@ from typing import Any, AnyStr, Generic, TypeVar, Union, get_type_hints
 
 from sphinx.util.inspect import Signature
 
-typing.TYPE_CHECKING = True
-typing.SPHINX = True
-
 try:
     from inspect import unwrap
 except ImportError:
